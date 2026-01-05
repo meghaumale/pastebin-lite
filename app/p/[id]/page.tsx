@@ -1,23 +1,36 @@
-
-import { kv } from "@/lib/kv";
-import { nowMs } from "@/lib/time";
+import { kv } from "../../../lib/kv";
+import { nowMs } from "../../../lib/time";
 import { notFound } from "next/navigation";
 
-function esc(s: string) {
-  return s.replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"} as any)[m]);
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (m) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]!)
+  );
 }
 
-export default async function Page({ params }: any) {
+export default async function Page({ params }: { params: { id: string } }) {
   const key = `paste:${params.id}`;
-  const p = await kv.get<any>(key);
-  if (!p) notFound();
+  const paste = await kv.get<any>(key);
+  if (!paste) notFound();
 
   const now = nowMs();
-  if (p.expires_at && now >= p.expires_at) { await kv.del(key); notFound(); }
-  if (p.max_views !== null && p.views >= p.max_views) { await kv.del(key); notFound(); }
 
-  p.views++;
-  await kv.set(key, p);
+  if (paste.expires_at && now >= paste.expires_at) {
+    await kv.del(key);
+    notFound();
+  }
 
-  return <pre style={{whiteSpace:"pre-wrap",padding:20}}>{esc(p.content)}</pre>;
+  if (paste.max_views !== null && paste.views >= paste.max_views) {
+    await kv.del(key);
+    notFound();
+  }
+
+  paste.views += 1;
+  await kv.set(key, paste);
+
+  return (
+    <pre style={{ whiteSpace: "pre-wrap", padding: 20 }}>
+      {escapeHtml(paste.content)}
+    </pre>
+  );
 }

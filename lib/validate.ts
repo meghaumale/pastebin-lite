@@ -1,7 +1,6 @@
-
-export function badRequest(msg: string) {
-  return new Response(JSON.stringify({ error: msg }), {
+export function badRequest(message: string) {
+  return new Response(JSON.stringify({ error: message }), {
     status: 400,
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
   });
 }

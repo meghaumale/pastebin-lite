@@ -1,29 +1,42 @@
+import { kv } from "../../../../lib/kv";
+import { nowMs } from "../../../../lib/time";
 
-import { kv } from "@/lib/kv";
-import { nowMs } from "@/lib/time";
-
-function nf() {
+function notFound() {
   return new Response(JSON.stringify({ error: "Not found" }), {
     status: 404,
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
   });
 }
 
-export async function GET(_: Request, { params }: any) {
+export async function GET(_: Request, { params }: { params: { id: string } }) {
   const key = `paste:${params.id}`;
-  const p = await kv.get<any>(key);
-  if (!p) return nf();
+  const paste = await kv.get<any>(key);
+
+  if (!paste) return notFound();
 
   const now = nowMs();
-  if (p.expires_at && now >= p.expires_at) { await kv.del(key); return nf(); }
-  if (p.max_views !== null && p.views >= p.max_views) { await kv.del(key); return nf(); }
 
-  p.views++;
-  await kv.set(key, p);
+  if (paste.expires_at && now >= paste.expires_at) {
+    await kv.del(key);
+    return notFound();
+  }
+
+  if (paste.max_views !== null && paste.views >= paste.max_views) {
+    await kv.del(key);
+    return notFound();
+  }
+
+  paste.views += 1;
+  await kv.set(key, paste);
 
   return Response.json({
-    content: p.content,
-    remaining_views: p.max_views === null ? null : Math.max(0, p.max_views - p.views),
-    expires_at: p.expires_at ? new Date(p.expires_at).toISOString() : null
+    content: paste.content,
+    remaining_views:
+      paste.max_views === null
+        ? null
+        : Math.max(0, paste.max_views - paste.views),
+    expires_at: paste.expires_at
+      ? new Date(paste.expires_at).toISOString()
+      : null,
   });
 }
