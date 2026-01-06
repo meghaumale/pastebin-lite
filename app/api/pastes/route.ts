@@ -1,9 +1,10 @@
 import { Redis } from "@upstash/redis";
 import { nanoid } from "nanoid";
+import { NextRequest } from "next/server";
 
 const redis = Redis.fromEnv();
 
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   const { content } = await req.json();
 
   if (!content) {
