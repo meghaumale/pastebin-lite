@@ -1,42 +1,27 @@
-import crypto from "crypto";
+import { nowMs } from "../../../lib/time";
 import { kv } from "../../../lib/kv";
 import { badRequest } from "../../../lib/validate";
+import { nanoid } from "nanoid";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
-
-  if (!body?.content || typeof body.content !== "string" || !body.content.trim()) {
-    return badRequest("Invalid content");
+  if (!body || !body.content) {
+    return badRequest("Content is required");
   }
 
-  if (body.ttl_seconds !== undefined &&
-      (!Number.isInteger(body.ttl_seconds) || body.ttl_seconds < 1)) {
-    return badRequest("Invalid ttl_seconds");
-  }
-
-  if (body.max_views !== undefined &&
-      (!Number.isInteger(body.max_views) || body.max_views < 1)) {
-    return badRequest("Invalid max_views");
-  }
-
-  const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-  const now = Date.now();
-
-  await kv.set(`paste:${id}`, {
-    id,
+  const id = nanoid(8);
+  const paste = {
     content: body.content,
-    created_at: now,
-    expires_at: body.ttl_seconds ? now + body.ttl_seconds * 1000 : null,
-    max_views: body.max_views ?? null,
+    createdAt: nowMs(),
+    expiresAt: nowMs() + 24 * 60 * 60 * 1000, // 24h expiry
     views: 0,
-  });
+    maxViews: 10
+  };
 
-  const base = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "";
+  await kv.set(`paste:${id}`, paste);
 
-  return Response.json({
-    id,
-    url: `${base}/p/${id}`,
-  });
+  return new Response(
+  JSON.stringify({ url: `/p/${id}` }),
+  { status: 200, headers: { "Content-Type": "application/json" } }
+);
 }
